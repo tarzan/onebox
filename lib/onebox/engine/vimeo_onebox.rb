@@ -6,30 +6,30 @@ module Onebox
       include Engine
       include StandardEmbed
 
-      matches_regexp(/^https?:\/\/(www\.)?vimeo\.com\/\d+/)
+      matches_domain("vimeo.com", "www.vimeo.com")
       requires_iframe_origins "https://player.vimeo.com"
       always_https
 
-      WIDTH  ||= 640
-      HEIGHT ||= 360
+      def self.matches_path(path)
+        path.match?(%r{^/\d+(/\w+)?/?$})
+      end
+
+      def self.embed_url(video_id)
+        "https://player.vimeo.com/video/#{video_id}"
+      end
 
       def placeholder_html
         ::Onebox::Helpers.video_placeholder_html
       end
 
       def to_html
-        video_id = oembed_data[:video_id]
-        if video_id.nil?
-          # for private videos
-          video_id = uri.path[/\/(\d+)/, 1]
-        end
-        video_src = "https://player.vimeo.com/video/#{video_id}"
-        video_src = video_src.gsub('autoplay=1', '').chomp("?")
+        video_src = Nokogiri::HTML5.fragment(oembed_data[:html]).at_css("iframe")&.[]("src")
+        video_src = self.class.embed_url(oembed_data[:video_id]) if video_src.blank?
+        video_src = video_src.gsub("autoplay=1", "").chomp("?")
 
         <<-HTML
           <iframe
-            width="#{WIDTH}"
-            height="#{HEIGHT}"
+            class="vimeo-onebox"
             src="#{video_src}"
             data-original-href="#{link}"
             frameborder="0"
@@ -42,8 +42,8 @@ module Onebox
 
       def oembed_data
         response = Onebox::Helpers.fetch_response("https://vimeo.com/api/oembed.json?url=#{url}")
-        @oembed_data = Onebox::Helpers.symbolize_keys(::MultiJson.load(response))
-      rescue
+        @oembed_data = ::MultiJson.load(response, symbolize_keys: true)
+      rescue StandardError
         "{}"
       end
 
