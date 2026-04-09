@@ -106,7 +106,7 @@ module Onebox
 
         absolute_url = Onebox::Helpers.get_absolute_image_url(favicon, url)
 
-        return nil if absolute_url.length > UrlHelper::MAX_URL_LENGTH
+        return nil if absolute_url.length > 4096
 
         absolute_url
       end
@@ -165,7 +165,7 @@ module Onebox
 
       def set_from_normalizer_data(normalizer, skip_dimensions: false)
         normalizer.data.each do |k, _|
-          next if skip_dimensions && k.in?(%i[width height])
+          next if skip_dimensions && %i[width height].include?(k)
           v = normalizer.public_send(k)
           @raw[k] ||= v unless v.nil?
         end
@@ -174,7 +174,7 @@ module Onebox
       def set_opengraph_data_on_raw
         og = get_opengraph
         set_from_normalizer_data(og)
-        @raw.except!(:title_attr)
+        @raw.delete(:title_attr)
       end
 
       def set_twitter_data_on_raw

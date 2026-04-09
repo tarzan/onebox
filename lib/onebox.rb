@@ -10,6 +10,7 @@ require "cgi"
 require "net/http"
 require "digest"
 require "sanitize"
+require_relative "onebox/core_ext"
 require_relative "onebox/sanitize_config"
 
 module Onebox
@@ -17,7 +18,10 @@ module Onebox
     connect_timeout: 5,
     timeout: 10,
     max_download_kb: 2048, # 2MB
-    load_paths: [File.join(Rails.root, "lib/onebox/templates")],
+    load_paths: [
+      File.join(File.dirname(__dir__), "templates"),
+      File.join(__dir__, "onebox", "templates"),
+    ],
     allowed_ports: [80, 443],
     allowed_schemes: %w[http https],
     sanitize_config: SanitizeConfig::ONEBOX,
@@ -47,6 +51,7 @@ module Onebox
   end
 end
 
+require_relative "onebox/version"
 require_relative "onebox/preview"
 require_relative "onebox/status_check"
 require_relative "onebox/matcher"

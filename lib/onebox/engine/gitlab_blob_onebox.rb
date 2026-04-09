@@ -17,8 +17,8 @@ module Onebox
 
       def i18n
         {
-          truncated_file: I18n.t("onebox.gitlab.truncated_file"),
-          show_original: I18n.t("onebox.gitlab.show_original"),
+          truncated_file: "This file has been truncated.",
+          show_original: "Show original",
         }
       end
 

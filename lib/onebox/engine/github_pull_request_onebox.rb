@@ -64,15 +64,7 @@ module Onebox
         result["number"] = match[:number]
         result["i18n"] = i18n
         result["i18n"]["status_date_label"] = status_date_label(result["pr_status"])
-        result["i18n"]["pr_summary"] = I18n.t(
-          "onebox.github.pr_summary",
-          {
-            commits: result["commits"],
-            changed_files: result["changed_files"],
-            additions: result["additions"],
-            deletions: result["deletions"],
-          },
-        )
+        result["i18n"]["pr_summary"] = "#{result["commits"]} commits changed #{result["changed_files"]} files with #{result["additions"]} additions and #{result["deletions"]} deletions"
         result["is_private"] = result.dig("base", "repo", "private")
 
         result["base"]["label"].sub!(/\A#{org}:/, "")
@@ -81,23 +73,42 @@ module Onebox
         result
       end
 
+      STATUS_DATE_LABELS = {
+        "open" => "opened",
+        "merged" => "merged",
+        "closed" => "closed",
+        "draft" => "opened as draft",
+        "approved" => "approved",
+        "changes_requested" => "changes requested",
+      }.freeze
+
+      PR_STATUS_TITLES = {
+        "default" => "Pull Request",
+        "open" => "Open Pull Request",
+        "merged" => "Merged Pull Request",
+        "closed" => "Closed Pull Request",
+        "draft" => "Draft Pull Request",
+        "approved" => "Approved Pull Request",
+        "changes_requested" => "Changes Requested",
+      }.freeze
+
       def i18n
         {
-          opened: I18n.t("onebox.github.opened"),
-          commit_by: I18n.t("onebox.github.commit_by"),
-          comment_by: I18n.t("onebox.github.comment_by"),
-          review_by: I18n.t("onebox.github.review_by"),
+          opened: "opened",
+          commit_by: "committed",
+          comment_by: "commented",
+          review_by: "reviewed",
         }
       end
 
       def status_date_label(status)
         key = status.presence || "open"
-        I18n.t("onebox.github.status_date.#{key}")
+        STATUS_DATE_LABELS[key] || key
       end
 
       def pr_status_title(status)
         key = status.presence || "default"
-        I18n.t("onebox.github.pr_title.#{key}")
+        PR_STATUS_TITLES[key] || "Pull Request"
       end
 
       def load_commit(link)
@@ -129,13 +140,11 @@ module Onebox
           URI.parse(url).open({ read_timeout: timeout }.merge(github_auth_header(match[:org]))),
         )
       rescue OpenURI::HTTPError => e
-        Rails.logger.warn("GitHub API error: #{e.io.status[0]} fetching #{url}")
+        warn("GitHub API error: #{e.io.status[0]} fetching #{url}")
         raise
       end
 
       def fetch_pr_status(pr_data)
-        return unless SiteSetting.github_pr_status_enabled
-
         return { status: "merged", timestamp: pr_data["merged_at"] } if pr_data["merged"]
         return { status: "closed", timestamp: pr_data["closed_at"] } if pr_data["state"] == "closed"
         return { status: "draft", timestamp: pr_data["created_at"] } if pr_data["draft"]
@@ -152,7 +161,7 @@ module Onebox
 
         { status: "open", timestamp: pr_data["created_at"] }
       rescue StandardError => e
-        Rails.logger.warn("GitHub PR status fetch error: #{e.message}")
+        warn("GitHub PR status fetch error: #{e.message}")
         nil
       end
 

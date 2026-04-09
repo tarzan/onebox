@@ -9,6 +9,21 @@ module Onebox
 
     IGNORE_CANONICAL_DOMAINS = %w[www.instagram.com medium.com youtube.com]
 
+    def self.symbolize_keys(hash)
+      return {} if hash.nil?
+
+      hash.inject({}) do |result, (key, value)|
+        new_key = key.is_a?(String) ? key.to_sym : key
+        new_value = value.is_a?(Hash) ? symbolize_keys(value) : value
+        result[new_key] = new_value
+        result
+      end
+    end
+
+    def self.blank?(value)
+      value.blank?
+    end
+
     def self.clean(html)
       html.gsub(/<[^>]+>/, " ").gsub(/\n/, "")
     end
@@ -21,7 +36,7 @@ module Onebox
       response =
         (
           begin
-            fetch_response(url, headers:, raise_error_when_response_too_large: false)
+            fetch_response(url, headers: headers, raise_error_when_response_too_large: false)
           rescue StandardError
             nil
           end
@@ -41,22 +56,15 @@ module Onebox
         canonical_uri = Addressable::URI.parse(canonical_link)&.normalize!
         if canonical_link && canonical_uri &&
              "#{canonical_uri.host}#{canonical_uri.path}" != "#{uri.host}#{uri.path}"
-          uri =
-            FinalDestination.new(
-              canonical_uri,
-              Oneboxer.get_final_destination_options(canonical_uri),
-            ).resolve
-          if uri.present?
-            response =
-              (
-                begin
-                  fetch_response(uri.to_s, headers:, raise_error_when_response_too_large: false)
-                rescue StandardError
-                  nil
-                end
-              )
-            doc = Nokogiri.HTML(response) if response
-          end
+          response =
+            (
+              begin
+                fetch_response(canonical_uri.to_s, headers: headers, raise_error_when_response_too_large: false)
+              rescue StandardError
+                nil
+              end
+            )
+          doc = Nokogiri.HTML(response) if response
         end
       end
 
@@ -80,7 +88,7 @@ module Onebox
       uri = Addressable::URI.join(domain, uri) if !uri.host
 
       result = StringIO.new
-      FinalDestination::HTTP.start(
+      Net::HTTP.start(
         uri.host,
         uri.port,
         open_timeout: Onebox.options.connect_timeout,
@@ -91,8 +99,9 @@ module Onebox
 
         headers ||= {}
 
-        headers["User-Agent"] ||= user_agent if user_agent
-        headers["Accept-Language"] ||= Oneboxer.accept_language
+        if Onebox.options.user_agent && !headers["User-Agent"]
+          headers["User-Agent"] = Onebox.options.user_agent
+        end
 
         request = Net::HTTP::Get.new(uri.request_uri, headers)
         start_time = Time.now
@@ -110,7 +119,7 @@ module Onebox
 
           code = response.code.to_i
           unless code === 200
-            response.error! if [301, 302, 303, 307, 308].exclude?(code)
+            response.error! unless [301, 302, 303, 307, 308].include?(code)
 
             return(
               fetch_response(
@@ -141,7 +150,7 @@ module Onebox
     def self.fetch_content_length(location)
       uri = URI(location)
 
-      FinalDestination::HTTP.start(
+      Net::HTTP.start(
         uri.host,
         uri.port,
         open_timeout: Onebox.options.connect_timeout,
@@ -154,7 +163,11 @@ module Onebox
         end
 
         http.request_head([uri.path, uri.query].join("?")) do |response|
-          return response.code.to_i == 200 ? response.content_length.presence : nil
+          code = response.code.to_i
+          unless code === 200 || blank?(response.content_length)
+            return nil
+          end
+          return response.content_length
         end
       end
     end
@@ -215,14 +228,7 @@ module Onebox
     end
 
     def self.user_agent
-      if SiteSetting.onebox_user_agent.present?
-        return "#{SiteSetting.onebox_user_agent} v#{Discourse::VERSION::STRING}"
-      end
-
-      if Onebox.options.user_agent.present?
-        return "#{Onebox.options.user_agent} v#{Discourse::VERSION::STRING}"
-      end
-      Discourse.user_agent
+      Onebox.options.user_agent
     end
 
     # Percent-encodes a URI string per RFC3986 - https://tools.ietf.org/html/rfc3986

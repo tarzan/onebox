@@ -4,8 +4,9 @@ module Onebox
   module Mixins
     module RedditAuthHeader
       def reddit_auth_header
-        if SiteSetting.reddit_onebox_client_id.blank? ||
-             SiteSetting.reddit_onebox_client_secret.blank?
+        client_id = Onebox.options.reddit_onebox_client_id
+        client_secret = Onebox.options.reddit_onebox_client_secret
+        if client_id.blank? || client_secret.blank?
           return {}
         end
 
@@ -16,32 +17,31 @@ module Onebox
       end
 
       def reddit_authenticated?
-        SiteSetting.reddit_onebox_client_id.present? &&
-          SiteSetting.reddit_onebox_client_secret.present?
+        Onebox.options.reddit_onebox_client_id.present? &&
+          Onebox.options.reddit_onebox_client_secret.present?
       end
 
       private
 
       def fetch_reddit_access_token
-        Discourse
-          .cache
-          .fetch("reddit_onebox_access_token", expires_in: 50.minutes) do
-            user = SiteSetting.reddit_onebox_client_id
-            password = SiteSetting.reddit_onebox_client_secret
+        @reddit_access_token ||=
+          begin
+            user = Onebox.options.reddit_onebox_client_id
+            password = Onebox.options.reddit_onebox_client_secret
 
-            response =
-              Excon.post(
-                "https://www.reddit.com/api/v1/access_token",
-                body: URI.encode_www_form(grant_type: "client_credentials"),
-                headers: {
-                  "Content-Type" => "application/x-www-form-urlencoded",
-                  "User-Agent" => Onebox::Helpers.user_agent,
-                },
-                user:,
-                password:,
-              )
+            uri = URI("https://www.reddit.com/api/v1/access_token")
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = true
 
-            ::MultiJson.load(response.body)["access_token"] if response.status == 200
+            request = Net::HTTP::Post.new(uri)
+            request.basic_auth(user, password)
+            request.set_form_data(grant_type: "client_credentials")
+            request["User-Agent"] = Onebox::Helpers.user_agent
+            request["Content-Type"] = "application/x-www-form-urlencoded"
+
+            response = http.request(request)
+
+            ::MultiJson.load(response.body)["access_token"] if response.code.to_i == 200
           end
       end
     end

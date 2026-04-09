@@ -6,11 +6,7 @@ module Onebox
       private
 
       def raw(http_headers = {})
-        @raw ||= ::MultiJson.load(URI.parse(url).open(options.merge(http_headers)))
-      end
-
-      def options
-        { read_timeout: timeout }
+        @raw ||= ::MultiJson.load(URI.open(url, { read_timeout: timeout }.merge(http_headers)))
       end
     end
   end

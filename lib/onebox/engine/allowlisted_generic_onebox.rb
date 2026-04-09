@@ -14,6 +14,124 @@ module Onebox
         200
       end
 
+      def self.allowed_domains=(list)
+        @allowed_domains = list
+      end
+
+      def self.allowed_domains
+        @allowed_domains ||= default_allowed_domains.dup
+      end
+
+      def self.default_allowed_domains
+        %w(
+          23hq.com
+          500px.com
+          8tracks.com
+          abc.net.au
+          answers.com
+          arstechnica.com
+          ask.com
+          battle.net
+          bbc.co.uk
+          bbs.boingboing.net
+          bestbuy.ca
+          bestbuy.com
+          bloomberg.com
+          businessinsider.com
+          change.org
+          cnet.com
+          cnn.com
+          codepen.io
+          collegehumor.com
+          consider.it
+          coursera.org
+          cracked.com
+          dailymail.co.uk
+          dailymotion.com
+          deadline.com
+          dell.com
+          deviantart.com
+          digg.com
+          dotsub.com
+          ebay.ca
+          ebay.co.uk
+          ebay.com
+          ehow.com
+          espn.go.com
+          etsy.com
+          facebook.com
+          findery.com
+          folksy.com
+          forbes.com
+          foxnews.com
+          funnyordie.com
+          gifs.com
+          groupon.com
+          howtogeek.com
+          huffingtonpost.ca
+          huffingtonpost.com
+          hulu.com
+          ign.com
+          ikea.com
+          imdb.com
+          indiatimes.com
+          itunes.apple.com
+          khanacademy.org
+          kickstarter.com
+          kinomap.com
+          lessonplanet.com
+          linkedin.com
+          liveleak.com
+          livestream.com
+          mashable.com
+          medium.com
+          meetup.com
+          mixcloud.com
+          mlb.com
+          nba.com
+          nfl.com
+          npr.org
+          nytimes.com
+          photobucket.com
+          pinterest.com
+          reference.com
+          rottentomatoes.com
+          samsung.com
+          screenr.com
+          scribd.com
+          slideshare.net
+          sourceforge.net
+          speakerdeck.com
+          spotify.com
+          squarespace.com
+          superuser.com
+          ted.com
+          thefreedictionary.com
+          theguardian.com
+          theonion.com
+          thestar.com
+          thinkgeek.com
+          tmz.com
+          torontosun.com
+          tumblr.com
+          twitpic.com
+          usatoday.com
+          vimeo.com
+          walmart.com
+          washingtonpost.com
+          wi.st
+          wikia.com
+          wired.com
+          wistia.com
+          wolframalpha.com
+          wordpress.com
+          worldstarhhiphop.com
+          wsj.com
+          zappos.com
+          zillow.com
+        )
+      end
+
       # Often using the `html` attribute is not what we want, like for some blogs that
       # include the entire page HTML. However for some providers like Flickr it allows us
       # to return gifv and galleries.
@@ -56,13 +174,8 @@ module Onebox
 
       def self.===(other)
         if other.is_a?(URI)
-          (
-            begin
-              IPAddr.new(other.hostname)
-            rescue StandardError
-              nil
-            end
-          ).nil?
+          return false if (begin; IPAddr.new(other.hostname); rescue; nil; end)
+          host_matches(other, allowed_domains)
         else
           true
         end

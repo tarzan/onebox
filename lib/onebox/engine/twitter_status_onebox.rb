@@ -6,8 +6,6 @@ module Onebox
       include Engine
       include LayoutSupport
       include HTML
-      include ActionView::Helpers::NumberHelper
-
       matches_domain("twitter.com", "www.twitter.com", "mobile.twitter.com", "x.com", "www.x.com")
       always_https
 
@@ -209,17 +207,16 @@ module Onebox
       end
 
       def prettify_number(count)
-        if count > 0
-          number_to_human(
-            count,
-            format: "%n%u",
-            precision: 2,
-            units: {
-              thousand: "K",
-              million: "M",
-              billion: "B",
-            },
-          )
+        return nil unless count > 0
+
+        if count >= 1_000_000_000
+          "%.2gB" % (count / 1_000_000_000.0)
+        elsif count >= 1_000_000
+          "%.2gM" % (count / 1_000_000.0)
+        elsif count >= 1_000
+          "%.2gK" % (count / 1_000.0)
+        else
+          count.to_s
         end
       end
 

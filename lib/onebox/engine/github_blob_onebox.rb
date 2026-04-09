@@ -20,10 +20,10 @@ module Onebox
 
       def i18n
         {
-          binary_file: I18n.t("onebox.github.binary_file"),
-          truncated_file: I18n.t("onebox.github.truncated_file"),
-          show_original: I18n.t("onebox.github.show_original"),
-          requires_iframe: I18n.t("onebox.github.requires_iframe"),
+          binary_file: "This file is binary.",
+          truncated_file: "This file has been truncated.",
+          show_original: "Show original",
+          requires_iframe: "This file requires iframe to render.",
         }
       end
 

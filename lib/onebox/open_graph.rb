@@ -38,7 +38,7 @@ module Onebox
             next if value.blank?
             key = $1.tr("-:", "_").to_sym
             data[key] ||= value
-            if key.in?(COLLECTIONS)
+            if COLLECTIONS.include?(key)
               collection_name = "#{key}s".to_sym
               data[collection_name] ||= []
               data[collection_name] << value

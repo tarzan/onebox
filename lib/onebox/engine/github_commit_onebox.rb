@@ -52,7 +52,7 @@ module Onebox
         result["link"] = link
         ulink = URI(link)
         result["domain"] = "#{ulink.host}/#{ulink.path.split("/")[1]}/#{ulink.path.split("/")[2]}"
-        result["i18n"] = { committed: I18n.t("onebox.github.committed") }
+        result["i18n"] = { committed: "committed" }
 
         result
       end

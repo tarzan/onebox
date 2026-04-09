@@ -38,9 +38,9 @@ module Onebox
 
       def i18n
         {
-          truncated_file: I18n.t("onebox.github.truncated_file"),
-          more_than_three_files: I18n.t("onebox.github.more_than_three_files"),
-          show_original: I18n.t("onebox.github.show_original"),
+          truncated_file: "This file has been truncated.",
+          more_than_three_files: "This gist contains more than three files.",
+          show_original: "Show original",
         }
       end
 

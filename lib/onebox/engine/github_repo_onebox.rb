@@ -35,7 +35,7 @@ module Onebox
         title = "GitHub - #{result["full_name"]}"
 
         if description.blank?
-          description = I18n.t("onebox.github.no_description", repo: result["full_name"])
+          description = "#{result["full_name"]} - No description provided"
         else
           title += ": #{Onebox::Helpers.truncate(description)}"
         end

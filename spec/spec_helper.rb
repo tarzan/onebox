@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+# FakeWeb uses File.exists? which was removed in Ruby 3.2
+unless File.respond_to?(:exists?)
+  class << File
+    alias_method :exists?, :exist?
+  end
+end
+
 require "rspec"
 require "pry"
 require "fakeweb"

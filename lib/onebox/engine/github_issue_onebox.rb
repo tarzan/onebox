@@ -33,7 +33,7 @@ module Onebox
       end
 
       def i18n
-        { opened: I18n.t("onebox.github.opened"), closed: I18n.t("onebox.github.closed") }
+        { opened: "opened", closed: "closed" }
       end
 
       def data
