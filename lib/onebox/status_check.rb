@@ -35,10 +35,13 @@ module Onebox
     private
 
     def check
-      res = URI.open(@url, read_timeout: (@options.timeout || Onebox.options.timeout))
-      @status = res.status.first.to_i
-    rescue OpenURI::HTTPError => e
-      @status = e.io.status.first.to_i
+      uri = URI(@url)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = (uri.scheme == "https")
+      http.open_timeout = @options.timeout || Onebox.options.timeout
+      http.read_timeout = @options.timeout || Onebox.options.timeout
+      response = http.request_get(uri.request_uri)
+      @status = response.code.to_i
     rescue Timeout::Error, Errno::ECONNREFUSED, Net::HTTPError
       @status = 0
     end

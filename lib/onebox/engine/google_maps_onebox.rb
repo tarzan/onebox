@@ -181,8 +181,8 @@ module Onebox
               read_timeout: timeout,
             )
 
-          response = http.head(uri.path)
-          if %w[200 301 302].exclude?(response.code)
+          response = http.head(uri.request_uri)
+          if !%w[200 301 302].include?(response.code)
             raise "unexpected response code #{response.code}"
           end
 

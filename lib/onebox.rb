@@ -26,6 +26,7 @@ module Onebox
     allowed_schemes: %w[http https],
     sanitize_config: SanitizeConfig::ONEBOX,
     redirect_limit: 5,
+    user_agent: "Ruby",
   }
 
   @@options = DEFAULTS

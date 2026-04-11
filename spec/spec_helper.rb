@@ -22,6 +22,29 @@ module FakeWeb
     def close; end
   end
 
+  # Ruby 3.2's open-uri mutates the response body string in place (clears it
+  # after reading), which empties FakeWeb's stored options[:body]. Return a dup
+  # so the original is preserved for subsequent requests.
+  class Responder
+    private
+
+    def body
+      return ''.dup if options[:body].nil?
+
+      raw = options[:body]
+      raw = raw.to_s if defined?(Pathname) && raw.is_a?(Pathname)
+      return raw.to_s.dup unless raw.is_a?(String)
+
+      content = if !raw.include?("\0") && File.exists?(raw) && !File.directory?(raw)
+        File.read(raw)
+      else
+        raw
+      end
+
+      content.dup
+    end
+  end
+
   # Monkey-patch to use Addressable::URI (rather than URI) to parse uris
   class Registry
     def normalize_uri(uri)

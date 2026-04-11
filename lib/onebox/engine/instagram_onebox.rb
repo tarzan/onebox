@@ -33,7 +33,7 @@ module Onebox
             end
 
             {
-              link: clean_url.gsub("/#{oembed.author_name}/", "/") + "/embed",
+              link: clean_url.gsub("/#{oembed.author_name}/", "/"),
               title: "@#{oembed.author_name}",
               image: oembed.thumbnail_url,
               image_width: oembed.data[:thumbnail_width],
@@ -45,17 +45,6 @@ module Onebox
 
       def placeholder_html
         ::Onebox::Helpers.image_placeholder_html
-      end
-
-      def to_html
-        <<-HTML
-          <iframe
-            src="#{data[:link]}"
-            width="#{data[:image_width]}"
-            height="#{data[:image_height].to_i + 98}"
-            frameborder="0"
-          ></iframe>
-        HTML
       end
 
       protected

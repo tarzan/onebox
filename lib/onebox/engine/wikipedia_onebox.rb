@@ -100,11 +100,12 @@ module Onebox
         }
 
         img = raw.css(".infobox-image img")
+        img = raw.css(".infobox img") if img.empty?
 
         if img && img.size > 0
           img.each do |i|
             src = i["src"]
-            if src !~ /Question_book/
+            if src !~ /Question_book|Star_full|Star_half|Star_empty/
               result[:image] = src
               break
             end

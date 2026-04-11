@@ -2,7 +2,12 @@
 
 module HTMLSpecHelper
   def fake(uri, response, verb = :get)
-    FakeWeb.register_uri(verb, uri, body: response, content_type: "text/html")
+    if response.is_a?(Hash)
+      response[:content_type] ||= "text/html"
+      FakeWeb.register_uri(verb, uri, **response)
+    else
+      FakeWeb.register_uri(verb, uri, body: response, content_type: "text/html")
+    end
   end
 
   def onebox_view(html)
