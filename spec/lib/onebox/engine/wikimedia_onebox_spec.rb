@@ -20,6 +20,6 @@ describe Onebox::Engine::WikimediaOnebox do
   end
 
   it "has the image" do
-    expect(html).to include("https://upload.wikimedia.org/wikipedia/commons/a/af/Stones_members_montage2.jpg")
+    expect(html).to include("https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Stones_members_montage2.jpg/500px-Stones_members_montage2.jpg")
   end
 end

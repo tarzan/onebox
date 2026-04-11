@@ -45,7 +45,17 @@ describe Onebox::Engine::GoogleMapsOnebox do
     URLS.values.each do |t|
       status, location = *t[:redirect]
       location = URLS[location][:test] if location.is_a? Symbol
-      FakeWeb.register_uri(:head, t[:test], response: "HTTP/1.1 #{status}\nLocation: #{location}\n\n")
+      if status
+        code = status.split(" ").first
+        FakeWeb.register_uri(:head, t[:test], status: [code, "Found"], location: location)
+        # Also register the redirect destination as 200 if it's a full URL (not a symbol)
+        unless t[:redirect][1].is_a?(Symbol)
+          dest = t[:redirect][1]
+          FakeWeb.register_uri(:head, dest, status: ["200", "OK"]) if dest.is_a?(String) && dest.start_with?("http")
+        end
+      else
+        FakeWeb.register_uri(:head, t[:test], status: ["200", "OK"])
+      end
     end
   end
 

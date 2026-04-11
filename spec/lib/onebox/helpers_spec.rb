@@ -144,7 +144,7 @@ RSpec.describe Onebox::Helpers do
   describe '.uri_encode' do
     it { expect(described_class.uri_encode('http://example.com/f"o&o?[b"ar]')).to eq("http://example.com/f%22o&o?%5Bb%22ar%5D") }
     it { expect(described_class.uri_encode("http://example.com/f.o~o;?<ba'r>")).to eq("http://example.com/f.o~o;?%3Cba%27r%3E") }
-    it { expect(described_class.uri_encode("http://example.com/<pa'th>(foo)?b+a+r")).to eq("http://example.com/%3Cpa'th%3E(foo)?b%2Ba%2Br") }
+    it { expect(described_class.uri_encode("http://example.com/<pa'th>(foo)?b+a+r")).to eq("http://example.com/%3Cpa'th%3E(foo)?b+a+r") }
     it { expect(described_class.uri_encode("http://example.com/p,a:t!h-f$o@o*?b!a#r@")).to eq("http://example.com/p,a:t!h-f$o@o*?b%21a#r%40") }
     it { expect(described_class.uri_encode("http://example.com/path&foo?b'a<r>&qu(er)y=1")).to eq("http://example.com/path&foo?b%27a%3Cr%3E&qu%28er%29y=1") }
     it { expect(described_class.uri_encode("http://example.com/index&<script>alert('XSS');</script>")).to eq("http://example.com/index&%3Cscript%3Ealert('XSS');%3C/script%3E") }

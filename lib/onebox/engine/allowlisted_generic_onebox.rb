@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require 'htmlentities'
+require "htmlentities"
+require "ipaddr"
 
 module Onebox
   module Engine
@@ -87,8 +88,8 @@ module Onebox
           meetup.com
           mixcloud.com
           mlb.com
-          myspace.com
           nba.com
+          nfl.com
           npr.org
           nytimes.com
           photobucket.com
@@ -96,36 +97,35 @@ module Onebox
           reference.com
           rottentomatoes.com
           samsung.com
+          screenr.com
           scribd.com
           slideshare.net
           sourceforge.net
           speakerdeck.com
           spotify.com
-          streamable.com
-          techcrunch.com
+          squarespace.com
+          superuser.com
           ted.com
           thefreedictionary.com
-          theglobeandmail.com
-          thenextweb.com
+          theguardian.com
           theonion.com
           thestar.com
-          thesun.co.uk
           thinkgeek.com
           tmz.com
           torontosun.com
           tumblr.com
           twitpic.com
           usatoday.com
-          viddler.com
-          vine.co
+          vimeo.com
           walmart.com
           washingtonpost.com
           wi.st
           wikia.com
-          wikihow.com
           wired.com
           wistia.com
-          wonderhowto.com
+          wolframalpha.com
+          wordpress.com
+          worldstarhhiphop.com
           wsj.com
           zappos.com
           zillow.com
@@ -136,7 +136,7 @@ module Onebox
       # include the entire page HTML. However for some providers like Flickr it allows us
       # to return gifv and galleries.
       def self.default_html_providers
-        ['Flickr', 'Meetup']
+        %w[Flickr Meetup]
       end
 
       def self.html_providers
@@ -157,29 +157,28 @@ module Onebox
       end
 
       def self.https_hosts
-        %w(slideshare.net dailymotion.com livestream.com imgur.com flickr.com)
+        %w[slideshare.net dailymotion.com livestream.com imgur.com flickr.com]
+      end
+
+      def self.article_html_hosts
+        %w[imdb.com]
       end
 
       def self.host_matches(uri, list)
-        !!list.find { |h| %r((^|\.)#{Regexp.escape(h)}$).match(uri.host) }
-      end
-
-      def self.probable_discourse(uri)
-        !!(uri.path =~ /\/t\/[^\/]+\/\d+(\/\d+)?(\?.*)?$/)
-      end
-
-      def self.probable_wordpress(uri)
-        !!(uri.path =~ /\d{4}\/\d{2}\//)
+        !!list.find { |h| /(^|\.)#{Regexp.escape(h)}$/.match(uri.host) }
       end
 
       def self.allowed_twitter_labels
-        ['brand', 'price', 'usd', 'cad', 'reading time', 'likes']
+        ["brand", "price", "usd", "cad", "reading time", "likes"]
       end
 
       def self.===(other)
-        other.kind_of?(URI) ?
-          host_matches(other, allowed_domains) || probable_wordpress(other) || probable_discourse(other) :
-          super
+        if other.is_a?(URI)
+          return false if (begin; IPAddr.new(other.hostname); rescue; nil; end)
+          host_matches(other, allowed_domains)
+        else
+          true
+        end
       end
 
       def to_html
@@ -187,80 +186,104 @@ module Onebox
       end
 
       def placeholder_html
-        return article_html if is_article?
+        return article_html if (is_article? || force_article_html?)
         return image_html if is_image?
-        return Onebox::Helpers.video_placeholder_html if is_video? || is_card?
+        return Onebox::Helpers.video_placeholder_html if (is_video? || is_card?)
         return Onebox::Helpers.generic_placeholder_html if is_embedded?
         to_html
       end
 
+      def verified_data
+        data
+      end
+
       def data
-        @data ||= begin
-          html_entities = HTMLEntities.new
-          d = { link: link }.merge(raw)
+        @data ||=
+          begin
+            html_entities = HTMLEntities.new
+            d = { link: link }.merge(raw)
 
-          if !Onebox::Helpers.blank?(d[:title])
-            d[:title] = html_entities.decode(Onebox::Helpers.truncate(d[:title], 80))
-          end
+            d[:title] = (
+              if d[:title].present?
+                html_entities.decode(Onebox::Helpers.truncate(d[:title], 80))
+              else
+                nil
+              end
+            )
 
-          d[:description] ||= d[:summary]
-          if !Onebox::Helpers.blank?(d[:description])
-            d[:description] = html_entities.decode(Onebox::Helpers.truncate(d[:description], 250))
-          end
-
-          if !Onebox::Helpers.blank?(d[:site_name])
-            d[:domain] = html_entities.decode(Onebox::Helpers.truncate(d[:site_name], 80))
-          elsif !Onebox::Helpers.blank?(d[:domain])
-            d[:domain] = "http://#{d[:domain]}" unless d[:domain] =~ /^https?:\/\//
-            d[:domain] = URI(d[:domain]).host.to_s.sub(/^www\./, '') rescue nil
-          end
-
-          # prefer secure URLs
-          d[:image] = d[:image_secure_url] || d[:image_url] || d[:thumbnail_url] || d[:image]
-          d[:image] = Onebox::Helpers::get_absolute_image_url(d[:image], @url)
-          d[:image] = Onebox::Helpers::normalize_url_for_output(html_entities.decode(d[:image]))
-          d[:image] = nil if Onebox::Helpers.blank?(d[:image])
-
-          d[:video] = d[:video_secure_url] || d[:video_url] || d[:video]
-          d[:video] = nil if Onebox::Helpers.blank?(d[:video])
-
-          d[:published_time] = d[:article_published_time] unless Onebox::Helpers.blank?(d[:article_published_time])
-          if !Onebox::Helpers.blank?(d[:published_time])
-            d[:article_published_time] = Time.parse(d[:published_time]).strftime("%-d %b %y")
-            d[:article_published_time_title] = Time.parse(d[:published_time]).strftime("%I:%M%p - %d %B %Y")
-          end
-
-          # Twitter labels
-          if !Onebox::Helpers.blank?(d[:label1]) && !Onebox::Helpers.blank?(d[:data1]) && !!AllowlistedGenericOnebox.allowed_twitter_labels.find { |l| d[:label1] =~ /#{l}/i }
-            d[:label_1] = Onebox::Helpers.truncate(d[:label1])
-            d[:data_1]  = Onebox::Helpers.truncate(d[:data1])
-          end
-          if !Onebox::Helpers.blank?(d[:label2]) && !Onebox::Helpers.blank?(d[:data2]) && !!AllowlistedGenericOnebox.allowed_twitter_labels.find { |l| d[:label2] =~ /#{l}/i }
-            unless Onebox::Helpers.blank?(d[:label_1])
-              d[:label_2] = Onebox::Helpers.truncate(d[:label2])
-              d[:data_2]  = Onebox::Helpers.truncate(d[:data2])
-            else
-              d[:label_1] = Onebox::Helpers.truncate(d[:label2])
-              d[:data_1]  = Onebox::Helpers.truncate(d[:data2])
+            d[:description] ||= d[:summary]
+            if d[:description].present?
+              d[:description] = html_entities.decode(Onebox::Helpers.truncate(d[:description], 250))
             end
-          end
 
-          if Onebox::Helpers.blank?(d[:label_1]) && !Onebox::Helpers.blank?(d[:price_amount]) && !Onebox::Helpers.blank?(d[:price_currency])
-            d[:label_1] = "Price"
-            d[:data_1] = Onebox::Helpers.truncate("#{d[:price_currency].strip} #{d[:price_amount].strip}")
-          end
-
-          skip_missing_tags = [:video]
-          d.each do |k, v|
-            next if skip_missing_tags.include?(k)
-            if v == nil || v == ''
-              errors[k] ||= []
-              errors[k] << 'is blank'
+            if d[:site_name].present?
+              d[:domain] = html_entities.decode(Onebox::Helpers.truncate(d[:site_name], 80))
+            elsif d[:domain].present?
+              d[:domain] = "http://#{d[:domain]}" unless d[:domain] =~ %r{^https?://}
+              d[:domain] = begin
+                URI(d[:domain]).host.to_s.sub(/^www\./, "")
+              rescue StandardError
+                nil
+              end
             end
-          end
 
-          d
-        end
+            # prefer secure URLs
+            d[:image] = d[:image_secure_url] || d[:image_url] || d[:thumbnail_url] || d[:image]
+            d[:image] = Onebox::Helpers.get_absolute_image_url(d[:image], @url)
+            d[:image] = Onebox::Helpers.normalize_url_for_output(html_entities.decode(d[:image]))
+            d[:image] = nil if d[:image].blank?
+
+            d[:video] = d[:video_secure_url] || d[:video_url] || d[:video]
+            d[:video] = nil if d[:video].blank?
+
+            d[:published_time] = d[:article_published_time] if d[:article_published_time].present?
+
+            if d[:published_time].present?
+              d[:article_published_time] = Time.parse(d[:published_time]).strftime("%-d %b %y")
+              d[:article_published_time_title] = Time.parse(d[:published_time]).strftime(
+                "%I:%M%p - %d %B %Y",
+              )
+            end
+
+            # Twitter labels
+            if d[:label1].present? && d[:data1].present? &&
+                 !!AllowlistedGenericOnebox.allowed_twitter_labels.find { |l|
+                   d[:label1] =~ /#{l}/i
+                 }
+              d[:label_1] = Onebox::Helpers.truncate(d[:label1])
+              d[:data_1] = Onebox::Helpers.truncate(d[:data1])
+            end
+            if d[:label2].present? && d[:data2].present? &&
+                 !!AllowlistedGenericOnebox.allowed_twitter_labels.find { |l|
+                   d[:label2] =~ /#{l}/i
+                 }
+              if d[:label_1].blank?
+                d[:label_1] = Onebox::Helpers.truncate(d[:label2])
+                d[:data_1] = Onebox::Helpers.truncate(d[:data2])
+              else
+                d[:label_2] = Onebox::Helpers.truncate(d[:label2])
+                d[:data_2] = Onebox::Helpers.truncate(d[:data2])
+              end
+            end
+
+            if d[:label_1].blank? && d[:price_amount].present? && d[:price_currency].present?
+              d[:label_1] = "Price"
+              d[:data_1] = Onebox::Helpers.truncate(
+                "#{d[:price_currency].strip} #{d[:price_amount].strip}",
+              )
+            end
+
+            skip_missing_tags = %i[video description]
+            d.each do |k, v|
+              next if skip_missing_tags.include?(k)
+              if v == nil || v == ""
+                errors[k] ||= []
+                errors[k] << "is blank"
+              end
+            end
+
+            d
+          end
       end
 
       private
@@ -274,31 +297,30 @@ module Onebox
       end
 
       def generic_html
-        return article_html  if is_article?
-        return video_html    if is_video?
-        return image_html    if is_image?
+        return article_html if (is_article? || force_article_html?)
+        return video_html if is_video?
+        return image_html if is_image?
         return embedded_html if is_embedded?
-        return card_html     if is_card?
-        return article_html  if (has_text? || is_image_article?)
+        return card_html if is_card?
+
+        article_html if (has_text? || is_image_article?)
       end
 
       def is_card?
-        data[:card] == 'player' &&
-          data[:player] =~ URI::regexp &&
+        data[:card] == "player" && data[:player] =~ URI.regexp &&
           options[:allowed_iframe_regexes]&.any? { |r| data[:player] =~ r }
       end
 
       def is_article?
-        (data[:type] =~ /article/ || data[:asset_type] =~ /article/) &&
-        has_text?
+        (data[:type] =~ /article/ || data[:asset_type] =~ /article/) && has_text?
       end
 
       def has_text?
-        has_title? && !Onebox::Helpers.blank?(data[:description])
+        has_title?
       end
 
       def has_title?
-        !Onebox::Helpers.blank?(data[:title])
+        data[:title].present?
       end
 
       def is_image_article?
@@ -306,55 +328,62 @@ module Onebox
       end
 
       def is_image?
-        data[:type] =~ /photo|image/ &&
-        data[:type] !~ /photostream/ &&
-        has_image?
+        data[:type] =~ /photo|image/ && data[:type] !~ /photostream/ && has_image?
       end
 
       def has_image?
-        !Onebox::Helpers.blank?(data[:image])
+        data[:image].present?
       end
 
       def is_video?
-        data[:type] =~ /^video[\/\.]/ &&
-          data[:video_type] == "video/mp4" && # Many sites include 'videos' with text/html types (i.e. iframes)
-          !Onebox::Helpers.blank?(data[:video])
+        # Many sites include 'videos' with text/html types (i.e. iframes)
+        data[:type] =~ %r{^video[/\.]} && data[:video_type] == "video/mp4" && data[:video].present?
       end
 
       def is_embedded?
-        return false unless data[:html] && data[:height]
+        return false if data[:html].blank?
         return true if AllowlistedGenericOnebox.html_providers.include?(data[:provider_name])
         return false unless data[:html]["iframe"]
 
-        fragment = Nokogiri::HTML5::fragment(data[:html])
-        src = fragment.at_css('iframe')&.[]("src")
+        fragment = Nokogiri::HTML5.fragment(data[:html])
+        src = fragment.at_css("iframe")&.[]("src")
         options[:allowed_iframe_regexes]&.any? { |r| src =~ r }
+      end
+
+      def force_article_html?
+        AllowlistedGenericOnebox.host_matches(uri, AllowlistedGenericOnebox.article_html_hosts) &&
+          (has_text? || is_image_article?)
       end
 
       def card_html
         escaped_url = ::Onebox::Helpers.normalize_url_for_output(data[:player])
 
-        <<~RAW
+        <<~HTML
         <iframe src="#{escaped_url}"
                 width="#{data[:player_width] || "100%"}"
                 height="#{data[:player_height]}"
                 scrolling="no"
                 frameborder="0">
         </iframe>
-        RAW
+        HTML
       end
 
       def article_html
+        if data[:image]
+          data[:thumbnail_width] ||= data[:image_width] || data[:width]
+          data[:thumbnail_height] ||= data[:image_height] || data[:height]
+        end
+
         layout.to_html
       end
 
       def image_html
-        return if Onebox::Helpers.blank?(data[:image])
+        return if data[:image].blank?
 
         escaped_src = ::Onebox::Helpers.normalize_url_for_output(data[:image])
 
-        alt    = data[:description]  || data[:title]
-        width  = data[:image_width]  || data[:thumbnail_width]  || data[:width]
+        alt = data[:description] || data[:title]
+        width = data[:image_width] || data[:thumbnail_width] || data[:width]
         height = data[:image_height] || data[:thumbnail_height] || data[:height]
 
         "<img src='#{escaped_src}' alt='#{alt}' width='#{width}' height='#{height}' class='onebox'>"
@@ -379,12 +408,12 @@ module Onebox
       end
 
       def embedded_html
-        fragment = Nokogiri::HTML5::fragment(data[:html])
+        fragment = Nokogiri::HTML5.fragment(data[:html])
         fragment.css("img").each { |img| img["class"] = "thumbnail" }
         if iframe = fragment.at_css("iframe")
           iframe.remove_attribute("style")
           iframe["width"] = data[:width] || "100%"
-          iframe["height"] = data[:height]
+          iframe["height"] = data[:height] if data[:height].present?
           iframe["scrolling"] = "no"
           iframe["frameborder"] = "0"
         end

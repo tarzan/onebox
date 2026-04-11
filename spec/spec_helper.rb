@@ -1,5 +1,12 @@
 # frozen_string_literal: true
 
+# FakeWeb uses File.exists? which was removed in Ruby 3.2
+unless File.respond_to?(:exists?)
+  class << File
+    alias_method :exists?, :exist?
+  end
+end
+
 require "rspec"
 require "pry"
 require "fakeweb"
@@ -13,6 +20,29 @@ module FakeWeb
   # See https://github.com/chrisk/fakeweb/pull/59.
   class StubSocket
     def close; end
+  end
+
+  # Ruby 3.2's open-uri mutates the response body string in place (clears it
+  # after reading), which empties FakeWeb's stored options[:body]. Return a dup
+  # so the original is preserved for subsequent requests.
+  class Responder
+    private
+
+    def body
+      return ''.dup if options[:body].nil?
+
+      raw = options[:body]
+      raw = raw.to_s if defined?(Pathname) && raw.is_a?(Pathname)
+      return raw.to_s.dup unless raw.is_a?(String)
+
+      content = if !raw.include?("\0") && File.exists?(raw) && !File.directory?(raw)
+        File.read(raw)
+      else
+        raw
+      end
+
+      content.dup
+    end
   end
 
   # Monkey-patch to use Addressable::URI (rather than URI) to parse uris

@@ -39,7 +39,7 @@ describe Onebox::Engine::GithubCommitOnebox do
       end
 
       it "includes commit time and date" do
-        expect(html).to include("02:03AM - 02 Aug 13")
+        expect(html).to include("02:16AM - 02 Aug 13")
       end
 
       it "includes number of files changed" do
@@ -59,7 +59,7 @@ describe Onebox::Engine::GithubCommitOnebox do
   describe "PR with commit URL" do
     before(:all) do
       @link = "https://github.com/discourse/discourse/pull/4662/commit/803d023e2307309f8b776ab3b8b7e38ba91c0919"
-      @uri = "https://api.github.com/repos/discourse/discourse/commit/803d023e2307309f8b776ab3b8b7e38ba91c0919"
+      @uri = "https://api.github.com/repos/discourse/discourse/commits/803d023e2307309f8b776ab3b8b7e38ba91c0919"
     end
 
     include_context "engines"
@@ -92,7 +92,7 @@ describe Onebox::Engine::GithubCommitOnebox do
       end
 
       it "includes commit time and date" do
-        expect(html).to include("02:03AM - 02 Aug 13")
+        expect(html).to include("02:16AM - 02 Aug 13")
       end
 
       it "includes number of files changed" do

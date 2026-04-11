@@ -10,28 +10,28 @@ require "cgi"
 require "net/http"
 require "digest"
 require "sanitize"
+require_relative "onebox/core_ext"
 require_relative "onebox/sanitize_config"
 
 module Onebox
   DEFAULTS = {
     connect_timeout: 5,
     timeout: 10,
-    max_download_kb: (10 * 1024), # 10MB
-    load_paths: [File.join(Gem::Specification.find_by_name("onebox").gem_dir, "templates")],
+    max_download_kb: 2048, # 2MB
+    load_paths: [
+      File.join(File.dirname(__dir__), "templates"),
+      File.join(__dir__, "onebox", "templates"),
+    ],
     allowed_ports: [80, 443],
-    allowed_schemes: ["http", "https"],
-    sanitize_config: Sanitize::Config::ONEBOX,
-    redirect_limit: 5
+    allowed_schemes: %w[http https],
+    sanitize_config: SanitizeConfig::ONEBOX,
+    redirect_limit: 5,
+    user_agent: "Ruby",
   }
 
   @@options = DEFAULTS
 
   def self.preview(url, options = Onebox.options)
-    # onebox does not have native caching
-    unless Onebox::Helpers.blank?(options[:cache])
-      warn "Onebox no longer has inbuilt caching so `cache` option will be ignored."
-    end
-
     Preview.new(url, options)
   end
 
